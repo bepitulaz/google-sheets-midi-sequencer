@@ -1,6 +1,6 @@
 # Google Sheets as 2 tracks MIDI sequencer
 
-<img width="1440" alt="image" src="https://github.com/bepitulaz/google-sheets-midi-sequencer/assets/313962/64f953f0-f4a5-4b8f-88b2-2709426977ad">
+<img width="1440" alt="image" src="https://github.com/bepitulaz/google-sheets-midi-sequencer/assets/313962/acc3b971-52f0-4e52-b3ed-e7424d9d9628">
 
 We can extend the functionality of Google Sheets via [Apps Script](https://developers.google.com/apps-script). This repository is a proof of concept to use Google Sheets as a MIDI sequencer. I built a custom sidebar UI for Google Sheets, and access WebMIDI API from there. Then, I connected my synthesizer via USB cable to the laptop. The script can read and send the MIDI data from Google Sheets cell and pass it to the synthesizer.
 
