@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <script src="https://cdn.jsdelivr.net/npm/webmidi@latest/dist/iife/webmidi.iife.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+  </head>
+  <body>
+    <button id="play-btn">Start sequence</button>
+    <button id="stop-btn">Stop sequence</button>
+
+    <div style="text-align: center; font-family: Arial;">
+      <h5>Track 1 Note</h5>
+      <h2 id="track1-label">-</h2>
+      <button id="track1play-btn">Track 1 Play</button>
+      <button id="track1stop-btn">Track 1 Stop</button>
+    </div>
+
+    <div style="text-align: center; font-family: Arial;">
+      <h5>Track 2 Note</h5>
+      <h2 id="track2-label">-</h2>
+      <button id="track2play-btn">Track 2 Play</button>
+      <button id="track2stop-btn">Track 2 Stop</button>
+    </div>
+    
+    <script type="module">
+      let channelDevice = null;
+      let track1Data = Array(16).fill({ note: '-', velocity: 0 });
+      let track2Data = Array(16).fill({ note: '-', velocity: 0 });
+      let tempo = 0;
+      let step1 = 0;
+      let step2 = 0
+      let time1 = 0;
+      let time2 = 0;
+      const deviceName = "Arturia MicroFreak";
+      const sequencer1Range = "D3:E18";
+      const sequencer2Range = "F3:G18";
+
+      // Track 1 sequence
+      const seq1 = new Tone.Loop((currentTime) => {
+        const track1 = track1Data[step1];
+
+        time1 = currentTime;
+        
+        if (step1 === 0) {
+          const lastStep = track1Data[track1Data.length - 1];
+
+          if (lastStep.note !== '-') {
+            channelDevice.stopNote(lastStep.note);
+          }
+        }
+
+        if (track1.note !== '-') {
+          if (step1 > 0) {
+            channelDevice.stopNote(track1Data[step1 - 1].note);
+          }
+
+          // Show the label
+          document.getElementById('track1-label').textContent = track1.note;
+
+          channelDevice.playNote(track1.note, { attack: track1.velocity });
+        }
+
+        step1++;
+        // reset the step sequence
+        if (step1 === 16) {
+          step1 = 0;
+        }
+      }, "8n");
+
+      // Track 2 sequence
+      const seq2 = new Tone.Loop((currentTime) => {
+        const track2 = track2Data[step2];
+
+        time2 = currentTime;
+        
+        if (step2 === 0) {
+          const lastStep = track2Data[track2Data.length - 1];
+
+          if (lastStep.note !== '-') {
+            channelDevice.stopNote(lastStep.note);
+          }
+        }
+
+        if (track2.note !== '-') {
+          if (step2 > 0) {
+            channelDevice.stopNote(track2Data[step2 - 1].note);
+          }
+
+          // Show the label
+          document.getElementById('track2-label').textContent = track2.note;
+
+          channelDevice.playNote(track2.note, { attack: track2.velocity });
+        }
+
+        step2++;
+        // reset the step sequence
+        if (step2 === 16) {
+          step2 = 0;
+        }
+      }, "2n");
+
+      // Play event
+      const playButton = document.getElementById("play-btn");
+      playButton.addEventListener("click", async () => {
+        playButton.textContent = 'Update sequence';
+
+        const tempoFromSheet = await new Promise((fn) => {
+          google.script.run.withSuccessHandler(fn).getTempo();
+        });
+
+        tempo = parseInt(tempoFromSheet);
+
+        const track1 = await new Promise((fn) => {
+          google.script.run.withSuccessHandler(fn).getTrackData(sequencer1Range);
+        });
+
+        const track2 = await new Promise((fn) => {
+          google.script.run.withSuccessHandler(fn).getTrackData(sequencer2Range);
+        });
+
+        track1Data = [];
+        for (const item of track1) {
+          track1Data.push({note: item[0], velocity: item[1] });
+        }
+
+        track2Data = [];
+        for (const item of track2) {
+          track2Data.push({note: item[0], velocity: item[1] });
+        }
+
+        Tone.Transport.bpm.value = tempo;
+
+        Tone.Transport.start();
+      });
+
+      // Stop event
+      document.getElementById("stop-btn").addEventListener("click", () => {
+        track1Data.forEach((data) => {
+          channelDevice.stopNote(data.note);
+        });
+
+        track2Data.forEach((data) => {
+          channelDevice.stopNote(data.note);
+        });
+
+        Tone.Transport.stop();
+
+        playButton.textContent = "Play sequence";
+      });
+
+      // Track 1 event play
+      document.getElementById("track1play-btn").addEventListener("click", () => {
+        seq1.start(time1);
+      });
+
+      // Track 1 event stop
+      document.getElementById("track1stop-btn").addEventListener("click", () => {
+        track1Data.forEach((data) => {
+          channelDevice.stopNote(data.note);
+        });
+
+        seq1.stop(time1);
+
+        document.getElementById('track1-label').textContent = '-';
+      });
+
+      // Track 2 event play
+      document.getElementById("track2play-btn").addEventListener("click", () => {
+        seq2.start(time2);
+      });
+
+      // Track 2 event stop
+      document.getElementById("track2stop-btn").addEventListener("click", () => {
+        track2Data.forEach((data) => {
+          channelDevice.stopNote(data.note);
+        });
+        
+        seq2.stop(time2);
+
+        document.getElementById('track2-label').textContent = '-';
+      });
+
+      function onMidiEnabled() {
+        if (WebMidi.inputs.length < 1) {
+          console.log('No MIDI device detected');
+        } else {
+          const outputDevice = WebMidi.getOutputByName(deviceName);
+
+          channelDevice = outputDevice.channels[2];
+        }
+      }
+
+      function start() {
+        WebMidi
+          .enable()
+          .then(onMidiEnabled)
+          .catch((err) => {
+            console.log(err)
+          });
+      }
+
+      start();
+    </script>
+  </body>
+</html>
